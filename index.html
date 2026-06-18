@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IFT Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --bg2: #f5f5f3; --bg3: #efefec;
+      --text: #1a1a18; --text2: #5f5e5a; --text3: #888780;
+      --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+      --radius: 8px; --radius-lg: 12px;
+      --blue: #378ADD; --blue-dark: #185FA5; --blue-light: #E6F1FB; --blue-text: #0C447C;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1e1e1c; --bg2: #2a2a28; --bg3: #222220;
+        --text: #f0ede8; --text2: #a8a49e; --text3: #6e6b66;
+        --border: rgba(255,255,255,0.10); --border2: rgba(255,255,255,0.18);
+      }
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg3); color: var(--text); font-size: 15px; line-height: 1.5; min-height: 100vh; }
+    .app { max-width: 900px; margin: 0 auto; padding: 1.5rem 1rem; }
+    .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px; }
+    .header-title { font-size: 22px; font-weight: 500; color: var(--text); }
+    .header-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
+    .header-actions { display: flex; gap: 8px; }
+    .tabs { display: flex; gap: 2px; border-bottom: 0.5px solid var(--border); margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .tab { padding: 9px 16px; font-size: 13px; cursor: pointer; border: none; background: none; color: var(--text2); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; font-family: inherit; }
+    .tab.active { color: var(--text); border-bottom-color: var(--blue); font-weight: 500; }
+    .tab:hover { color: var(--text); }
+    .page { display: none; } .page.active { display: block; }
+    .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem; }
+    .section-title { font-size: 15px; font-weight: 500; color: var(--text); margin-bottom: 1rem; }
+    .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+    .metric { background: var(--bg2); border-radius: var(--radius); padding: 1rem; text-align: center; }
+    .metric-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+    .metric-value { font-size: 20px; font-weight: 500; color: var(--text); }
+    .metric-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .form-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .form-group { margin-bottom: 10px; }
+    label { font-size: 13px; color: var(--text2); display: block; margin-bottom: 4px; }
+    input, select { width: 100%; font-size: 14px; padding: 8px 10px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text); font-family: inherit; outline: none; }
+    input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(55,138,221,0.15); }
+    .btn { padding: 8px 16px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: none; color: var(--text); font-size: 13px; cursor: pointer; font-family: inherit; }
+    .btn:hover { background: var(--bg2); }
+    .btn-primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .btn-primary:hover { background: var(--blue-dark); border-color: var(--blue-dark); }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+    .btn-danger { color: #A32D2D; border-color: #F09595; }
+    .btn-danger:hover { background: #FCEBEB; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+    .player-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 0.5px solid var(--border); }
+    .player-row:last-child { border-bottom: none; }
+    .avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; flex-shrink: 0; }
+    .test-table { width: 100%; font-size: 12px; border-collapse: collapse; }
+    .test-table th { text-align: left; padding: 6px 4px; font-weight: 400; color: var(--text3); border-bottom: 0.5px solid var(--border2); }
+    .test-table th.r, .test-table td.r { text-align: right; }
+    .test-table td { padding: 7px 4px; border-bottom: 0.5px solid var(--border); }
+    .zone-bar { border-radius: var(--radius); padding: 10px 12px; margin-bottom: 6px; display: grid; grid-template-columns: 110px 1fr auto; align-items: center; gap: 12px; }
+    .zone-track { height: 6px; border-radius: 3px; background: rgba(0,0,0,0.1); position: relative; }
+    .zone-fill { height: 6px; border-radius: 3px; position: absolute; top: 0; }
+    .hiit-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 4px; padding: 9px 0; border-bottom: 0.5px solid var(--border); align-items: center; }
+    .hiit-header { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 4px; padding: 6px 0; border-bottom: 0.5px solid var(--border2); }
+    .divider { border: none; border-top: 0.5px solid var(--border); margin: 1rem 0; }
+    .empty { text-align: center; padding: 2rem; color: var(--text3); font-size: 13px; }
+    .tags-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .chart-wrap { position: relative; width: 100%; height: 300px; margin-bottom: 1rem; }
+    .info-note { font-size: 11px; color: var(--text3); margin-top: .75rem; }
+    @media (max-width: 600px) {
+      .form-row, .form-row3 { grid-template-columns: 1fr; }
+      .hiit-row, .hiit-header { grid-template-columns: 2fr 1fr 1fr; }
+      .hiit-row .col-tempo, .hiit-header .col-tempo { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div>
+      <div class="header-title">IFT Dashboard</div>
+      <div class="header-sub">30-15IFT · ASR-Modell · Buchheit HIIT</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-sm" onclick="exportData()">↓ Export</button>
+      <label class="btn btn-sm" style="cursor:pointer">↑ Import<input type="file" accept=".json" onchange="importData(event)" style="display:none"></label>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showPage('overview',this)">Übersicht</button>
+    <button class="tab" onclick="showPage('players',this)">Spieler</button>
+    <button class="tab" onclick="showPage('tests',this)">Tests</button>
+    <button class="tab" onclick="showPage('zones',this)">Zonen & Läufe</button>
+    <button class="tab" onclick="showPage('hiit',this)">HIIT-Planer</button>
+    <button class="tab" onclick="showPage('verlauf',this)">Verlauf</button>
+  </div>
+
+  <!-- ÜBERSICHT -->
+  <div id="page-overview" class="page active">
+    <div class="metric-grid" id="ov-metrics"></div>
+    <div class="card" id="ov-recent"></div>
+  </div>
+
+  <!-- SPIELER -->
+  <div id="page-players" class="page">
+    <div class="card">
+      <p class="section-title">Spieler anlegen</p>
+      <div class="form-row">
+        <div class="form-group"><label>Name</label><input id="pName" type="text" placeholder="Max Mustermann"></div>
+        <div class="form-group"><label>Position</label>
+          <select id="pPos"><option>Torhüter</option><option>Innenverteidiger</option><option>Außenverteidiger</option><option>Def. Mittelfeld</option><option>Zentrales Mittelfeld</option><option>Off. Mittelfeld</option><option>Außenspieler</option><option>Stürmer</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Trikotnummer</label><input id="pNr" type="number" placeholder="10" min="1" max="99"></div>
+        <div class="form-group"><label>Jahrgang</label><input id="pYear" type="number" placeholder="2000"></div>
+      </div>
+      <button class="btn btn-primary" onclick="addPlayer()">+ Spieler anlegen</button>
+    </div>
+    <div class="card"><p class="section-title">Kader</p><div id="player-list"></div></div>
+  </div>
+
+  <!-- TESTS -->
+  <div id="page-tests" class="page">
+    <div class="card">
+      <p class="section-title">Testergebnis erfassen</p>
+      <div class="form-row">
+        <div class="form-group"><label>Spieler</label><select id="tPlayer"><option value="">– wählen –</option></select></div>
+        <div class="form-group"><label>Saison</label>
+          <select id="tSeason">
+            <option>2024/25 – Sommer</option><option>2024/25 – Winter</option>
+            <option>2025/26 – Sommer</option><option>2025/26 – Winter</option>
+            <option>2026/27 – Sommer</option><option>2026/27 – Winter</option>
+            <option>2027/28 – Sommer</option><option>2027/28 – Winter</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row3">
+        <div class="form-group"><label>Letzte Stufe</label><input id="tStage" type="number" placeholder="z.B. 21" step="0.5"></div>
+        <div class="form-group"><label>VIFT (km/h)</label><input id="tVift" type="number" placeholder="z.B. 18.5" step="0.5"></div>
+        <div class="form-group"><label>MSS – Catapult (km/h)</label><input id="tMss" type="number" placeholder="z.B. 31.2" step="0.1"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>vVO₂max (km/h) <span id="vvo2tag" class="badge" style="background:#FAEEDA;color:#633806;font-size:10px">wird geschätzt (VIFT−3)</span></label>
+          <input id="tVvo2" type="number" placeholder="leer = automatisch" step="0.5" oninput="updateVvo2Tag()">
+        </div>
+        <div class="form-group"><label>Datum</label><input id="tDate" type="date"></div>
+      </div>
+      <div class="form-group"><label>Notizen</label><input id="tNotes" type="text" placeholder="Bedingungen, Besonderheiten..."></div>
+      <button class="btn btn-primary" onclick="addTest()">✓ Speichern</button>
+    </div>
+    <div class="card"><p class="section-title">Alle Tests</p><div id="test-list" style="overflow-x:auto"></div></div>
+  </div>
+
+  <!-- ZONEN -->
+  <div id="page-zones" class="page">
+    <div class="card">
+      <div class="form-row">
+        <div class="form-group"><label>Spieler</label><select id="zPlayer" onchange="zTestRefresh()"><option value="">– wählen –</option></select></div>
+        <div class="form-group"><label>Testdurchgang</label><select id="zTest" onchange="renderZones()"><option value="">–</option></select></div>
+      </div>
+    </div>
+    <div id="zone-content"></div>
+  </div>
+
+  <!-- HIIT -->
+  <div id="page-hiit" class="page">
+    <div class="card">
+      <div class="form-row">
+        <div class="form-group"><label>Spieler</label><select id="hPlayer" onchange="hTestRefresh()"><option value="">– wählen –</option></select></div>
+        <div class="form-group"><label>Testdurchgang</label><select id="hTest" onchange="renderHiit()"><option value="">–</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Laufmodus</label>
+          <select id="hMode" onchange="renderHiit()">
+            <option value="straight">Gerade Linie</option>
+            <option value="shuttle40">Shuttle 40 m (−3%)</option>
+            <option value="shuttle20">Shuttle 20 m (−5%)</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Intensitätsfilter</label>
+          <select id="hFilter" onchange="renderHiit()">
+            <option value="all">Alle</option>
+            <option value="low">Extensiv (85–90%)</option>
+            <option value="mid">Intensiv (90–95%)</option>
+            <option value="high">Maximal (≥95%)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div id="hiit-content"></div>
+  </div>
+
+  <!-- VERLAUF -->
+  <div id="page-verlauf" class="page">
+    <div class="card">
+      <div class="form-row">
+        <div class="form-group"><label>Spieler</label><select id="vPlayer" onchange="renderVerlauf()"><option value="">– alle –</option></select></div>
+        <div class="form-group"><label>Kennwert</label>
+          <select id="vMetric" onchange="renderVerlauf()">
+            <option value="vift">VIFT (km/h)</option>
+            <option value="mss">MSS (km/h)</option>
+            <option value="asr">ASR (km/h)</option>
+            <option value="stage">Letzte Stufe</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="vChart" role="img" aria-label="Verlauf der IFT-Kennwerte"></canvas></div>
+    <div id="verlauf-table"></div>
+  </div>
+</div>
+
+<script>
+const SK = 'ift_dashboard_v2';
+let S = { players: [], tests: [] };
+let vChartInst = null;
+
+const AVC = [
+  {bg:'#E6F1FB',c:'#0C447C'},{bg:'#E1F5EE',c:'#085041'},{bg:'#EEEDFE',c:'#3C3489'},
+  {bg:'#FAEEDA',c:'#633806'},{bg:'#FAECE7',c:'#712B13'},{bg:'#EAF3DE',c:'#27500A'}
+];
+const AEROB = [
+  {key:'rekomp',label:'Rekomp',pMin:55,pMax:70,bg:'#E1F5EE',tc:'#085041'},
+  {key:'ga1',label:'GA1',pMin:70,pMax:80,bg:'#E6F1FB',tc:'#0C447C'},
+  {key:'ga2',label:'GA2',pMin:80,pMax:90,bg:'#EEEDFE',tc:'#3C3489'},
+  {key:'schwelle',label:'Schwelle',pMin:90,pMax:100,bg:'#FAEEDA',tc:'#633806'},
+];
+const SPRINT_Z = [
+  {label:'Hohe Intensität',pMin:60,pMax:80,bg:'#F1EFE8',tc:'#5F5E5A'},
+  {label:'Sehr hohe Intensität',pMin:80,pMax:90,bg:'#FAEEDA',tc:'#633806'},
+  {label:'Sprint',pMin:90,pMax:100,bg:'#FAECE7',tc:'#712B13'},
+];
+const HIIT_F = [
+  {label:'Dauerlauf extensiv',run:'3 min',rest:'–',pct:87,cat:'low'},
+  {label:'Intervall 45/15',run:'45"',rest:'15" passiv',pct:90,cat:'low'},
+  {label:'Intervall 30/30 aktiv',run:'30"',rest:'30" aktiv 40%',pct:90,cat:'low'},
+  {label:'Intervall 30/15',run:'30"',rest:'15" passiv',pct:90,cat:'low'},
+  {label:'Shuttle 30/30',run:'30"',rest:'30" passiv',pct:93,cat:'mid'},
+  {label:'Intervall 20/20',run:'20"',rest:'20" passiv',pct:95,cat:'mid'},
+  {label:'Intervall 15/15 aktiv',run:'15"',rest:'15" aktiv 25%',pct:95,cat:'mid'},
+  {label:'Shuttle 15/15 aktiv',run:'15"',rest:'15" aktiv 25%',pct:95,cat:'mid'},
+  {label:'Intervall 15/15 max',run:'15"',rest:'15" passiv',pct:100,cat:'high'},
+  {label:'Shuttle 15/15 max',run:'15"',rest:'15" passiv',pct:100,cat:'high'},
+  {label:'Sprint 10/20',run:'10"',rest:'20" passiv',pct:103,cat:'high'},
+];
+const COLS = ['#378ADD','#1D9E75','#D85A30','#7F77DD','#BA7517','#D4537E'];
+
+function load(){try{const d=localStorage.getItem(SK);if(d)S=JSON.parse(d);}catch(e){}renderAll();}
+function save(){try{localStorage.setItem(SK,JSON.stringify(S));}catch(e){}}
+function renderAll(){populateSelects();renderOverview();renderPlayers();renderTests();renderZones();renderHiit();renderVerlauf();}
+
+function showPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  btn.classList.add('active');
+  if(id==='verlauf')setTimeout(renderVerlauf,50);
+}
+
+function initials(n){return n.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);}
+function fmtDate(d){if(!d)return'';const[y,m,dd]=d.split('-');return`${dd}.${m}.${y}`;}
+function today(){return new Date().toISOString().split('T')[0];}
+function getVvo2(t){return t.vvo2||parseFloat((t.vift-3).toFixed(1));}
+function getAsr(t){if(!t.mss)return null;return parseFloat((t.mss-getVvo2(t)).toFixed(1));}
+function runSecs(l){const m=l.match(/^(\d+)\s*min/);if(m)return parseInt(m[1])*60;const s=l.match(/^(\d+)"/);if(s)return parseInt(s[1]);return 15;}
+function calcDist(vift,pct,run,mode){
+  const vms=(vift*pct/100)/3.6;let d=vms*runSecs(run);
+  if(mode==='shuttle40')d*=0.97;else if(mode==='shuttle20')d*=0.95;
+  return Math.round(d);
+}
+function badge(bg,tc,txt){return`<span class="badge" style="background:${bg};color:${tc}">${txt}</span>`;}
+
+function updateVvo2Tag(){
+  const v=document.getElementById('tVvo2').value;
+  const el=document.getElementById('vvo2tag');
+  el.style.background=v?'#EAF3DE':'#FAEEDA';
+  el.style.color=v?'#27500A':'#633806';
+  el.textContent=v?'manuell':'wird geschätzt (VIFT−3)';
+}
+
+function addPlayer(){
+  const name=document.getElementById('pName').value.trim();
+  if(!name)return alert('Name eingeben.');
+  S.players.push({id:Date.now(),name,pos:document.getElementById('pPos').value,nr:document.getElementById('pNr').value||'',year:document.getElementById('pYear').value||''});
+  save();renderAll();
+  ['pName','pNr','pYear'].forEach(id=>document.getElementById(id).value='');
+}
+function deletePlayer(id){
+  if(!confirm('Spieler und alle Tests löschen?'))return;
+  S.players=S.players.filter(p=>p.id!==id);
+  S.tests=S.tests.filter(t=>t.playerId!==id);
+  save();renderAll();
+}
+function addTest(){
+  const pid=parseInt(document.getElementById('tPlayer').value);
+  if(!pid)return alert('Spieler wählen.');
+  const vift=parseFloat(document.getElementById('tVift').value);
+  const stage=parseFloat(document.getElementById('tStage').value);
+  if(isNaN(vift)||isNaN(stage))return alert('VIFT und Stufe eingeben.');
+  const mssV=document.getElementById('tMss').value;
+  const vvo2V=document.getElementById('tVvo2').value;
+  S.tests.push({
+    id:Date.now(),playerId:pid,season:document.getElementById('tSeason').value,
+    stage,vift,mss:mssV?parseFloat(mssV):null,vvo2:vvo2V?parseFloat(vvo2V):null,
+    date:document.getElementById('tDate').value||today(),
+    notes:document.getElementById('tNotes').value.trim()
+  });
+  save();renderAll();
+  ['tStage','tVift','tMss','tVvo2','tNotes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('tDate').value=today();
+  updateVvo2Tag();
+}
+function deleteTest(id){S.tests=S.tests.filter(t=>t.id!==id);save();renderAll();}
+
+function populateSelects(){
+  const opts=S.players.map(p=>`<option value="${p.id}">${p.name}${p.nr?' (#'+p.nr+')':''}</option>`).join('');
+  ['tPlayer','zPlayer','hPlayer'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;
+    const cur=el.value;
+    el.innerHTML='<option value="">– wählen –</option>'+opts;
+    if(cur)el.value=cur;
+  });
+  const vel=document.getElementById('vPlayer');
+  if(vel){const cur=vel.value;vel.innerHTML='<option value="">– alle –</option>'+opts;if(cur)vel.value=cur;}
+}
+
+function testsFor(pid){return S.tests.filter(t=>t.playerId===parseInt(pid)).sort((a,b)=>new Date(b.date)-new Date(a.date));}
+
+function renderOverview(){
+  const nt=S.tests.length,np=S.players.length;
+  const mssT=S.tests.filter(t=>t.mss);
+  const avgV=nt?(S.tests.reduce((s,t)=>s+t.vift,0)/nt).toFixed(1):'–';
+  const avgA=mssT.length?(mssT.reduce((s,t)=>s+getAsr(t),0)/mssT.length).toFixed(1):'–';
+  document.getElementById('ov-metrics').innerHTML=[
+    ['Kader',np,''],['Tests gesamt',nt,''],
+    ['Ø VIFT Team',avgV,nt?' km/h':''],['Ø ASR Team',avgA,mssT.length?' km/h':'']
+  ].map(([l,v,u])=>`<div class="metric"><div class="metric-label">${l}</div><div class="metric-value">${v}${u}</div></div>`).join('');
+  const last=[...S.tests].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,6);
+  document.getElementById('ov-recent').innerHTML=`<p class="section-title">Zuletzt erfasste Tests</p>`+(last.length?last.map(t=>{
+    const p=S.players.find(x=>x.id===t.playerId);const isW=t.season.includes('Winter');const asr=getAsr(t);
+    return`<div class="player-row">
+      <div style="display:flex;align-items:center;gap:8px">
+        ${badge(isW?'#E1F5EE':'#E6F1FB',isW?'#085041':'#0C447C',isW?'Winter':'Sommer')}
+        <span style="font-size:14px;font-weight:500">${p?.name||'–'}</span>
+        <span style="font-size:12px;color:var(--text2)">${t.season}</span>
+      </div>
+      <div style="text-align:right">
+        <p style="font-size:13px;font-weight:500">VIFT ${t.vift}${t.mss?' · MSS '+t.mss:''}</p>
+        <p style="font-size:11px;color:var(--text3)">${asr?'ASR '+asr.toFixed(1)+' · ':''}${fmtDate(t.date)}</p>
+      </div>
+    </div>`;
+  }).join(''):`<p class="empty">Noch keine Tests. Beginne unter „Tests".</p>`);
+}
+
+function renderPlayers(){
+  const el=document.getElementById('player-list');
+  if(!S.players.length){el.innerHTML='<p class="empty">Noch keine Spieler angelegt.</p>';return;}
+  el.innerHTML=S.players.map((p,i)=>{
+    const ac=AVC[i%AVC.length];
+    const tests=testsFor(p.id);const last=tests[0];
+    return`<div class="player-row">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="avatar" style="background:${ac.bg};color:${ac.c}">${initials(p.name)}</div>
+        <div>
+          <p style="font-size:14px;font-weight:500">${p.name}${p.nr?' #'+p.nr:''}</p>
+          <p style="font-size:12px;color:var(--text2)">${p.pos}${p.year?' · Jg. '+p.year:''}</p>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="text-align:right">
+          ${last?`<p style="font-size:12px;font-weight:500">VIFT ${last.vift}${last.mss?' · MSS '+last.mss:''}</p><p style="font-size:11px;color:var(--text3)">${tests.length} Test${tests.length!==1?'s':''} · ${fmtDate(last.date)}</p>`:'<p style="font-size:12px;color:var(--text3)">Kein Test</p>'}
+        </div>
+        <button class="btn btn-sm btn-danger" onclick="deletePlayer(${p.id})">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderTests(){
+  const el=document.getElementById('test-list');
+  if(!S.tests.length){el.innerHTML='<p class="empty">Noch keine Tests erfasst.</p>';return;}
+  const rows=[...S.tests].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(t=>{
+    const p=S.players.find(x=>x.id===t.playerId);const isW=t.season.includes('Winter');
+    const asr=getAsr(t);const vvo2=getVvo2(t);
+    return`<tr>
+      <td style="font-weight:500">${p?.name||'–'}</td>
+      <td>${badge(isW?'#E1F5EE':'#E6F1FB',isW?'#085041':'#0C447C',isW?'W':'S')} ${t.season.replace(' – ',' ')}</td>
+      <td class="r">${t.stage}</td>
+      <td class="r" style="font-weight:500">${t.vift}</td>
+      <td class="r">${t.mss||'–'}</td>
+      <td class="r" style="color:#185FA5">${asr?asr.toFixed(1):'–'}</td>
+      <td class="r">${vvo2.toFixed(1)} ${badge(t.vvo2?'#EAF3DE':'#FAEEDA',t.vvo2?'#27500A':'#633806',t.vvo2?'M':'S')}</td>
+      <td class="r"><button class="btn btn-sm btn-danger" onclick="deleteTest(${t.id})">✕</button></td>
+    </tr>`;
+  }).join('');
+  el.innerHTML=`<table class="test-table"><thead><tr><th>Spieler</th><th>Saison</th><th class="r">Stufe</th><th class="r">VIFT</th><th class="r">MSS</th><th class="r">ASR</th><th class="r">vVO₂max</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function zTestRefresh(){
+  const pid=document.getElementById('zPlayer').value;
+  const sel=document.getElementById('zTest');
+  if(!pid){sel.innerHTML='<option value="">–</option>';renderZones();return;}
+  const tests=testsFor(pid);
+  sel.innerHTML=tests.length?tests.map(t=>`<option value="${t.id}">${t.season} – ${fmtDate(t.date)} (VIFT ${t.vift})</option>`).join(''):'<option value="">Kein Test vorhanden</option>';
+  renderZones();
+}
+
+function hTestRefresh(){
+  const pid=document.getElementById('hPlayer').value;
+  const sel=document.getElementById('hTest');
+  if(!pid){sel.innerHTML='<option value="">–</option>';renderHiit();return;}
+  const tests=testsFor(pid);
+  sel.innerHTML=tests.length?tests.map(t=>`<option value="${t.id}">${t.season} – ${fmtDate(t.date)} (VIFT ${t.vift})</option>`).join(''):'<option value="">Kein Test vorhanden</option>';
+  renderHiit();
+}
+
+function renderZones(){
+  const el=document.getElementById('zone-content');
+  const pid=document.getElementById('zPlayer').value;
+  const tid=document.getElementById('zTest').value;
+  if(!pid||!tid){el.innerHTML='<p class="empty">Spieler und Testdurchgang wählen.</p>';return;}
+  const test=S.tests.find(t=>t.id===parseInt(tid));
+  if(!test){el.innerHTML='<p class="empty">Test nicht gefunden.</p>';return;}
+  const p=S.players.find(x=>x.id===test.playerId);
+  const vvo2=getVvo2(test);const asr=getAsr(test);const isEst=!test.vvo2;
+  let html=`<div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+      <p class="section-title" style="margin:0">${p?.name} · ${test.season}</p>
+      <div class="tags-row">
+        ${badge('#E6F1FB','#0C447C','VIFT '+test.vift+' km/h')}
+        ${test.mss?badge('#FAEEDA','#633806','MSS '+test.mss+' km/h'):''}
+        ${badge(isEst?'#FAEEDA':'#EAF3DE',isEst?'#633806':'#27500A','vVO₂max '+vvo2.toFixed(1)+' '+(isEst?'(Schätzung)':'(gemessen)'))}
+        ${asr?badge('#EEEDFE','#3C3489','ASR '+asr.toFixed(1)+' km/h'):''}
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:1rem">Aerobe Zonen · Basis: vVO₂max ${isEst?'(VIFT − 3 km/h, Schätzung)':'(manuell)'}</p>`;
+  AEROB.forEach(z=>{
+    const lo=(vvo2*z.pMin/100).toFixed(1);const hi=(vvo2*z.pMax/100).toFixed(1);
+    html+=`<div class="zone-bar" style="background:${z.bg}">
+      <div><div style="font-size:12px;font-weight:500;color:${z.tc}">${z.label}</div><div style="font-size:10px;color:${z.tc};opacity:.75">${z.pMin}–${z.pMax}% vVO₂max</div></div>
+      <div class="zone-track"><div class="zone-fill" style="background:${z.tc};width:${(z.pMax-z.pMin)*2}%;left:${(z.pMin-55)*2}%"></div></div>
+      <div style="font-size:13px;font-weight:500;color:${z.tc};white-space:nowrap">${lo}–${hi} km/h</div>
+    </div>`;
+  });
+  if(test.mss&&asr){
+    html+=`<hr class="divider"><p style="font-size:12px;color:var(--text3);margin-bottom:.75rem">Sprint-Intensitätszonen · Basis: MSS (${test.mss} km/h)</p>`;
+    SPRINT_Z.forEach(z=>{
+      const lo=(test.mss*z.pMin/100).toFixed(1);const hi=(test.mss*z.pMax/100).toFixed(1);
+      html+=`<div class="zone-bar" style="background:${z.bg}">
+        <div><div style="font-size:12px;font-weight:500;color:${z.tc}">${z.label}</div><div style="font-size:10px;color:${z.tc};opacity:.75">${z.pMin}–${z.pMax}% MSS</div></div>
+        <div class="zone-track"><div class="zone-fill" style="background:${z.tc};width:${(z.pMax-z.pMin)*2.5}%;left:${(z.pMin-60)*2.5}%"></div></div>
+        <div style="font-size:13px;font-weight:500;color:${z.tc};white-space:nowrap">${lo}–${hi} km/h</div>
+      </div>`;
+    });
+  }
+  html+=`</div>`;
+  el.innerHTML=html;
+}
+
+function renderHiit(){
+  const el=document.getElementById('hiit-content');
+  const pid=document.getElementById('hPlayer').value;
+  const tid=document.getElementById('hTest').value;
+  if(!pid||!tid){el.innerHTML='<p class="empty">Spieler und Testdurchgang wählen.</p>';return;}
+  const test=S.tests.find(t=>t.id===parseInt(tid));
+  if(!test){el.innerHTML='<p class="empty">Test nicht gefunden.</p>';return;}
+  const p=S.players.find(x=>x.id===test.playerId);
+  const mode=document.getElementById('hMode').value;
+  const filter=document.getElementById('hFilter').value;
+  const filtered=HIIT_F.filter(f=>filter==='all'||f.cat===filter);
+  const modeLabel={straight:'Gerade Linie',shuttle40:'Shuttle 40 m',shuttle20:'Shuttle 20 m'}[mode];
+  let html=`<div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+      <p class="section-title" style="margin:0">HIIT-Distanzen · ${p?.name}</p>
+      ${badge('#E6F1FB','#0C447C','VIFT '+test.vift+' km/h')}
+    </div>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:1rem">Nach Buchheit (NSCA 2013) · ${modeLabel}</p>
+    <div class="hiit-header">
+      <span style="font-size:11px;color:var(--text3)">Format</span>
+      <span style="font-size:11px;color:var(--text3);text-align:center">Intensität</span>
+      <span style="font-size:11px;color:var(--text3);text-align:right">Zieldistanz</span>
+      <span class="col-tempo" style="font-size:11px;color:var(--text3);text-align:right">Tempo</span>
+    </div>`;
+  filtered.forEach(f=>{
+    const dist=calcDist(test.vift,f.pct/100,f.run,mode);
+    const kmh=(test.vift*f.pct/100).toFixed(1);
+    const catBg=f.cat==='low'?'#E1F5EE':f.cat==='mid'?'#E6F1FB':'#FAECE7';
+    const catTc=f.cat==='low'?'#085041':f.cat==='mid'?'#0C447C':'#712B13';
+    html+=`<div class="hiit-row">
+      <div><div style="font-size:13px;font-weight:500">${f.label}</div><div style="font-size:11px;color:var(--text3)">${f.run} / ${f.rest}</div></div>
+      <div style="text-align:center">${badge(catBg,catTc,f.pct+'%')}</div>
+      <div style="text-align:right;font-size:16px;font-weight:500">${dist} m</div>
+      <div class="col-tempo" style="text-align:right;font-size:13px;color:var(--text3)">${kmh} km/h</div>
+    </div>`;
+  });
+  html+=`<p class="info-note">Formel: (VIFT/3.6) × %VIFT × t(s) · COD-Korrekturfaktor Shuttle: −3–5%</p></div>`;
+  el.innerHTML=html;
+}
+
+function renderVerlauf(){
+  const pid=document.getElementById('vPlayer').value;
+  const metric=document.getElementById('vMetric').value;
+  const labels_map={vift:'VIFT (km/h)',mss:'MSS (km/h)',asr:'ASR (km/h)',stage:'Letzte Stufe'};
+  const ctx=document.getElementById('vChart');
+  if(!ctx)return;
+  if(vChartInst){vChartInst.destroy();vChartInst=null;}
+  let tests=[...S.tests].sort((a,b)=>new Date(a.date)-new Date(b.date));
+  if(pid)tests=tests.filter(t=>t.playerId===parseInt(pid));
+  const metVal=t=>metric==='vift'?t.vift:metric==='mss'?t.mss:metric==='asr'?getAsr(t):t.stage;
+  const labels=tests.map(t=>t.season.replace(' – ',' ').replace('Sommer','So.').replace('Winter','Wi.')+' '+fmtDate(t.date));
+  let datasets=[];
+  if(pid){
+    const p=S.players.find(x=>x.id===parseInt(pid));
+    datasets=[{label:p?.name||'',data:tests.map(metVal),borderColor:COLS[0],backgroundColor:COLS[0]+'22',tension:0.3,fill:true,pointRadius:5}];
+  } else {
+    S.players.forEach((p,i)=>{
+      const pt=tests.filter(t=>t.playerId===p.id);
+      if(!pt.length)return;
+      datasets.push({label:p.name,data:pt.map(metVal),borderColor:COLS[i%COLS.length],backgroundColor:'transparent',tension:0.3,fill:false,pointRadius:4});
+    });
+  }
+  if(!datasets.length){document.getElementById('verlauf-table').innerHTML='<p class="empty">Keine Daten vorhanden.</p>';return;}
+  vChartInst=new Chart(ctx,{type:'line',data:{labels,datasets},options:{
+    responsive:true,maintainAspectRatio:false,
+    scales:{y:{beginAtZero:false,title:{display:true,text:labels_map[metric],color:'#888780'},ticks:{color:'#888780'}},x:{ticks:{color:'#888780',font:{size:11},maxRotation:35}}},
+    plugins:{legend:{display:datasets.length>1,labels:{boxWidth:12,font:{size:11}}},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.parsed.y}`}}}
+  }});
+  const tableRows=[...S.tests].filter(t=>!pid||t.playerId===parseInt(pid)).sort((a,b)=>new Date(b.date)-new Date(a.date)).map(t=>{
+    const p=S.players.find(x=>x.id===t.playerId);const asr=getAsr(t);
+    return`<tr><td style="font-weight:500">${p?.name||'–'}</td><td style="color:var(--text2)">${t.season}</td><td style="color:var(--text2)">${fmtDate(t.date)}</td><td class="r" style="font-weight:500">${t.vift}</td><td class="r">${t.mss||'–'}</td><td class="r" style="color:#185FA5">${asr?asr.toFixed(1):'–'}</td><td class="r">${t.stage}</td></tr>`;
+  }).join('');
+  document.getElementById('verlauf-table').innerHTML=`<div class="card"><table class="test-table"><thead><tr><th>Spieler</th><th>Saison</th><th>Datum</th><th class="r">VIFT</th><th class="r">MSS</th><th class="r">ASR</th><th class="r">Stufe</th></tr></thead><tbody>${tableRows}</tbody></table></div>`;
+}
+
+function exportData(){
+  const a=document.createElement('a');
+  a.href='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(S,null,2));
+  a.download='ift_dashboard_backup.json';a.click();
+}
+function importData(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{try{S=JSON.parse(ev.target.result);save();renderAll();alert('Import erfolgreich!');}catch(err){alert('Datei ungültig.');}};
+  r.readAsText(f);e.target.value='';
+}
+
+document.getElementById('tDate').value=today();
+load();
+</script>
+</body>
+</html>
