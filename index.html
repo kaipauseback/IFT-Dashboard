@@ -268,7 +268,7 @@ function getVvo2(t){return t.vvo2||parseFloat((t.vift-3).toFixed(1));}
 function getAsr(t){if(!t.mss)return null;return parseFloat((t.mss-getVvo2(t)).toFixed(1));}
 function runSecs(l){const m=l.match(/^(\d+)\s*min/);if(m)return parseInt(m[1])*60;const s=l.match(/^(\d+)/);if(s)return parseInt(s[1]);return 15;}
 function calcDist(vift,pct,secs,mode){
-  const vms=(vift*pct/100)/3.6;let d=vms*secs;
+  const vms=(vift*pct)/3.6;let d=vms*secs;
   if(mode==='shuttle40')d*=0.97;else if(mode==='shuttle20')d*=0.95;
   return Math.round(d);
 }
@@ -279,7 +279,7 @@ const T_ACCEL=HSR_THRESH/ACC;
 const D_ACCEL=0.5*ACC*T_ACCEL*T_ACCEL;
 
 function calcHSR(vift,pct,secs,mode){
-  const vRun=vift*pct/100/3.6;
+  const vRun=vift*pct/3.6;
   if(vRun<=HSR_THRESH)return 0;
   if(mode==='straight'){
     const timeAtHSR=Math.max(0,secs-T_ACCEL);
